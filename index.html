@@ -4,16 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WebGIS Assignment - Interactive Map with Weather</title>
-    <!-- Prevent favicon error -->
+    <!-- Fix favicon error -->
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🗺️</text></svg>">
     <!-- OpenLayers CSS -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v7.3.0/ol.css" type="text/css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v8.2.0/ol.css" type="text/css">
     <!-- Font Awesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Custom CSS -->
     <link rel="stylesheet" href="style.css">
-    <!-- OpenLayers JS -->
-    <script src="https://cdn.jsdelivr.net/npm/ol@v7.3.0/dist/ol.js"></script>
 </head>
 <body>
     <div class="container">
@@ -136,20 +134,32 @@
 
         <!-- API Comparison Info -->
         <div class="api-comparison">
-            <h3><i class="fas fa-chart-line"></i> API Information</h3>
-            <div class="comparison-tabs">
-                <button class="tab-btn active" data-tab="geocoding">Geocoding APIs</button>
-                <button class="tab-btn" data-tab="weather">Weather APIs</button>
-            </div>
-            
-            <div class="tab-content active" id="geocoding-tab">
-                <div class="api-card">
-                    <h4><i class="fas fa-map-pin"></i> OpenCage Geocoding API</h4>
-                    <p><strong>Free Tier:</strong> 2,500 requests/day</p>
-                    <p><strong>Pricing:</strong> $0.0015/request after free tier</p>
-                    <p><strong>Used in this project:</strong> Yes</p>
-                </div>
-            </div>
+    <h3><i class="fas fa-chart-line"></i> API Information</h3>
+    <div class="comparison-tabs">
+        <button class="tab-btn active" data-tab="geocoding">Geocoding APIs</button>
+        <button class="tab-btn" data-tab="weather">Weather APIs</button>
+    </div>
+    
+    <div class="tab-content active" id="geocoding-tab">
+        <div class="api-card">
+            <h4><i class="fas fa-map-pin"></i> LocationIQ Geocoding API</h4>
+            <p><strong>Free Tier:</strong> 10,000 requests/day</p>
+            <p><strong>Pricing:</strong> $0.50/10,000 requests after free tier</p>
+            <p><strong>Rate Limit:</strong> 2 requests/second</p>
+            <p><strong>Used in this project:</strong> Yes</p>
+            <p><strong>Website:</strong> <a href="https://locationiq.com/" target="_blank">locationiq.com</a></p>
+        </div>
+    </div>
+    
+    <div class="tab-content" id="weather-tab">
+        <div class="api-card">
+            <h4><i class="fas fa-cloud-sun-rain"></i> OpenWeatherMap API</h4>
+            <p><strong>Free Tier:</strong> 1,000 calls/day</p>
+            <p><strong>Pricing:</strong> Free for current weather data</p>
+            <p><strong>Used in this project:</strong> Yes</p>
+        </div>
+    </div>
+</div>
             
             <div class="tab-content" id="weather-tab">
                 <div class="api-card">
@@ -160,7 +170,7 @@
                 </div>
             </div>
         </div>
-        
+
         <!-- Instructions -->
         <div class="instructions">
             <h3><i class="fas fa-graduation-cap"></i> How to Use</h3>
@@ -178,8 +188,10 @@
         </footer>
     </div>
 
+    <!-- OpenLayers JS -->
+    <script src="https://cdn.jsdelivr.net/npm/ol@v8.2.0/dist/ol.js"></script>
     <!-- JavaScript -->
     <script src="script.js"></script>
-    <script src="config.js"></script>
+
 </body>
 </html>
