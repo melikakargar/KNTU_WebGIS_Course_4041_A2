@@ -2,363 +2,588 @@
 // Main application script
 
 // ============================================================================
-// CONFIGURATION - API KEYS AND SETTINGS
+// CONFIGURATION - API KEYS (Using provided keys)
 // ============================================================================
 
-const CONFIG = {
-    // API Keys - Demo mode (no API key needed)
-    GEOCODING_API_KEY: 'demo-mode',
-    WEATHER_API_KEY: 'demo-mode',
-    
-    // Map Settings
-    INITIAL_CENTER: [51.3890, 35.6892], // تهران
-    INITIAL_ZOOM: 6,
-    MIN_ZOOM: 2,
-    MAX_ZOOM: 18,
-    
-    // API Endpoints
-    GEOCODING_API_URL: 'https://nominatim.openstreetmap.org/search',
-    WEATHER_API_URL: 'https://api.openweathermap.org/data/2.5/weather',
-    
-    // Default Settings
-    DEFAULT_SEARCH_ZOOM: 12,
-    DEFAULT_CLICK_ZOOM: 14,
-    ANIMATION_DURATION: 1000
-};
+// Using LocationIQ for geocoding and OpenWeatherMap for weather
+const GEOCODING_API_KEY = 'pk.078ede3fa7cbb516376bd0ac9e994930'; // LocationIQ API key
+const WEATHER_API_KEY = '204b682aafd0915f187bb074642157af'; // OpenWeatherMap API key
 
 // ============================================================================
-// GLOBAL VARIABLES
+// MAP INITIALIZATION - FIXED VERSION
 // ============================================================================
 
-let map = null;
-let markerLayer = null;
-let clickMarker = null;
+// Initialize OpenLayers Map
+let map;
+let markerLayer;
+let clickMarker;
 
-// ============================================================================
-// MAP INITIALIZATION
-// ============================================================================
-
+/**
+ * Initialize the OpenLayers map with base layers and controls
+ */
 function initializeMap() {
     console.log('Initializing OpenLayers map...');
     
-    try {
-        // Create base layers
-        const osmLayer = new ol.layer.Tile({
-            title: 'OpenStreetMap',
-            type: 'base',
-            visible: true,
-            source: new ol.source.OSM()
-        });
-        
-        // Create marker layers
-        markerLayer = new ol.layer.Vector({
-            source: new ol.source.Vector(),
-            style: new ol.style.Style({
-                image: new ol.style.Circle({
-                    radius: 8,
-                    fill: new ol.style.Fill({ color: '#FF5722' }),
-                    stroke: new ol.style.Stroke({ color: '#fff', width: 2 })
+    // Create base layers
+    const osmLayer = new ol.layer.Tile({
+        source: new ol.source.OSM()
+    });
+    
+    // Create marker layer for search results
+    markerLayer = new ol.layer.Vector({
+        source: new ol.source.Vector(),
+        style: new ol.style.Style({
+            image: new ol.style.Circle({
+                radius: 8,
+                fill: new ol.style.Fill({
+                    color: '#FF5722'
+                }),
+                stroke: new ol.style.Stroke({
+                    color: '#fff',
+                    width: 2
                 })
             })
-        });
-        
-        clickMarker = new ol.layer.Vector({
-            source: new ol.source.Vector(),
-            style: new ol.style.Style({
-                image: new ol.style.Circle({
-                    radius: 6,
-                    fill: new ol.style.Fill({ color: '#2196F3' }),
-                    stroke: new ol.style.Stroke({ color: '#fff', width: 2 })
+        })
+    });
+    
+    // Create marker layer for click locations
+    clickMarker = new ol.layer.Vector({
+        source: new ol.source.Vector(),
+        style: new ol.style.Style({
+            image: new ol.style.Circle({
+                radius: 6,
+                fill: new ol.style.Fill({
+                    color: '#2196F3'
+                }),
+                stroke: new ol.style.Stroke({
+                    color: '#fff',
+                    width: 2
                 })
             })
-        });
-        
-        // Create map
-        map = new ol.Map({
-            target: 'map',
-            layers: [osmLayer, markerLayer, clickMarker],
-            view: new ol.View({
-                center: ol.proj.fromLonLat(CONFIG.INITIAL_CENTER),
-                zoom: CONFIG.INITIAL_ZOOM,
-                minZoom: CONFIG.MIN_ZOOM,
-                maxZoom: CONFIG.MAX_ZOOM
-            })
-        });
-        
-        console.log('Map initialized successfully');
-        
-        // Add event listeners
-        map.on('click', handleMapClick);
-        
-    } catch (error) {
-        console.error('Error initializing map:', error);
-        alert('Error initializing map. Please check console.');
-    }
+        })
+    });
+    
+    // FIXED: Simple map creation without problematic controls
+    map = new ol.Map({
+        target: 'map',
+        layers: [osmLayer, markerLayer, clickMarker],
+        view: new ol.View({
+            center: ol.proj.fromLonLat([51.3890, 35.6892]), // Center on Tehran, Iran
+            zoom: 10
+        })
+    });
+    
+    console.log('Map initialized successfully');
+    
+    // Add click event listener for weather data
+    map.on('click', handleMapClick);
+    
+    // Add map move end event to update coordinates
+    map.getView().on('change:center', updateCoordinatesDisplay);
 }
 
 // ============================================================================
-// GEOCODING FUNCTIONS - WORKING VERSION
+// GEOCODING FUNCTIONS (Using LocationIQ)
 // ============================================================================
 
+/**
+ * Geocode a location using LocationIQ API
+ * @param {string} location - Location to geocode
+ * @returns {Promise<Object>} - Geocoding result
+ */
 async function geocodeLocation(location) {
-    console.log(`Searching for: ${location}`);
-    showLoading(true);
+    console.log(`Geocoding location: ${location}`);
     
-    // پیش‌تعریف موقعیت‌های معروف
-    const quickLocations = {
-        // شهرهای بین‌المللی
-        'tehran': [35.6892, 51.3890, 'تهران، ایران'],
-        'تهران': [35.6892, 51.3890, 'تهران، ایران'],
-        'london': [51.5074, -0.1278, 'لندن، انگلستان'],
-        'new york': [40.7128, -74.0060, 'نیویورک، آمریکا'],
-        'newyork': [40.7128, -74.0060, 'نیویورک، آمریکا'],
-        'ny': [40.7128, -74.0060, 'نیویورک، آمریکا'],
-        'tokyo': [35.6762, 139.6503, 'توکیو، ژاپن'],
-        'paris': [48.8566, 2.3522, 'پاریس، فرانسه'],
-        'berlin': [52.5200, 13.4050, 'برلین، آلمان'],
-        
-        // شهرهای ایران
-        'مشهد': [36.2605, 59.6168, 'مشهد، ایران'],
-        'اصفهان': [32.6546, 51.6680, 'اصفهان، ایران'],
-        'شیراز': [29.5916, 52.5836, 'شیراز، ایران'],
-        'shiraz': [29.5916, 52.5836, 'شیراز، ایران'],
-        'تبریز': [38.0962, 46.2738, 'تبریز، ایران'],
-        'tabriz': [38.0962, 46.2738, 'تبریز، ایران'],
-        'کرج': [35.8400, 50.9391, 'کرج، ایران'],
-        'karaj': [35.8400, 50.9391, 'کرج، ایران']
-    };
-    
-    const searchTerm = location.toLowerCase().trim();
-    
-    // چک کردن موقعیت‌های پیش‌تعریف
-    for (const [key, value] of Object.entries(quickLocations)) {
-        if (searchTerm === key || searchTerm.includes(key) || key.includes(searchTerm)) {
-            await new Promise(resolve => setTimeout(resolve, 300));
-            showLoading(false);
-            return {
-                lat: value[0],
-                lon: value[1],
-                formatted: value[2],
-                success: true
-            };
-        }
+    if (!GEOCODING_API_KEY) {
+        throw new Error('LocationIQ API key is not configured');
     }
     
-    // اگر پیدا نشد، از OpenStreetMap استفاده کن
+    // Using LocationIQ Search API
+    const url = `https://us1.locationiq.com/v1/search?key=${GEOCODING_API_KEY}&q=${encodeURIComponent(location)}&format=json&limit=1`;
+    
     try {
-        const response = await fetch(
-            `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(location)}&format=json&limit=1`,
-            { headers: { 'User-Agent': 'WebGIS-App' } }
-        );
+        showLoading(true);
         
-        if (!response.ok) throw new Error('Network error');
+        const response = await fetch(url);
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`LocationIQ API error (${response.status}): ${errorText}`);
+        }
         
         const data = await response.json();
         
         if (data && data.length > 0) {
-            showLoading(false);
+            const result = data[0];
+            console.log('Geocoding successful:', result);
+            
             return {
-                lat: parseFloat(data[0].lat),
-                lon: parseFloat(data[0].lon),
-                formatted: data[0].display_name,
-                success: true
+                lat: parseFloat(result.lat),
+                lon: parseFloat(result.lon),
+                formatted: result.display_name || location,
+                importance: result.importance || 0
             };
+        } else {
+            throw new Error('Location not found. Please try a different search term.');
         }
-        
-        throw new Error('Location not found');
-        
     } catch (error) {
-        console.warn('Using fallback location');
-        // موقعیت پیش‌فرض (تهران)
-        showLoading(false);
-        return {
-            lat: 35.6892,
-            lon: 51.3890,
-            formatted: `${location} (موقعیت تقریبی - تهران)`,
-            success: false
-        };
-    }
-}
-
-// ============================================================================
-// WEATHER FUNCTIONS - DEMO VERSION
-// ============================================================================
-
-async function getWeatherData(lat, lon, locationName = null) {
-    console.log(`Getting weather for: ${locationName || 'Unknown'}`);
-    showLoading(true);
-    
-    try {
-        // داده‌های آب‌وهوای نمونه
-        const weatherConditions = [
-            { desc: 'آفتابی', icon: '01d', temp: 25 },
-            { desc: 'نیمه ابری', icon: '02d', temp: 22 },
-            { desc: 'ابری', icon: '03d', temp: 19 },
-            { desc: 'بارانی', icon: '10d', temp: 17 }
-        ];
+        console.error('Geocoding error:', error);
         
-        const randomWeather = weatherConditions[Math.floor(Math.random() * weatherConditions.length)];
-        
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        const demoData = {
-            main: {
-                temp: randomWeather.temp + (Math.random() * 5 - 2.5),
-                feels_like: randomWeather.temp + (Math.random() * 3 - 1.5),
-                humidity: 40 + Math.random() * 40,
-                pressure: 1000 + Math.random() * 30
-            },
-            wind: { speed: (1 + Math.random() * 5).toFixed(1) },
-            visibility: (5 + Math.random() * 10).toFixed(0) + '000',
-            clouds: { all: Math.random() * 100 },
-            weather: [{ description: randomWeather.desc, icon: randomWeather.icon }],
-            coord: { lat, lon },
-            name: locationName || 'موقعیت انتخابی'
-        };
-        
-        displayWeatherData(demoData, locationName);
-        
-    } catch (error) {
-        console.error('Weather error:', error);
-        alert('نمایش داده‌های نمونه آب‌وهوا');
+        // Provide more specific error messages
+        if (error.message.includes('400')) {
+            throw new Error('Invalid search query. Please check your input.');
+        } else if (error.message.includes('401')) {
+            throw new Error('API key authentication failed. Please check your LocationIQ API key.');
+        } else if (error.message.includes('429')) {
+            throw new Error('Rate limit exceeded. Please try again in a moment.');
+        } else {
+            throw error;
+        }
     } finally {
         showLoading(false);
     }
 }
 
-// ============================================================================
-// UI FUNCTIONS
-// ============================================================================
+/**
+ * Reverse geocode coordinates using LocationIQ
+ * @param {number} lat - Latitude
+ * @param {number} lon - Longitude
+ * @returns {Promise<string>} - Formatted address
+ */
+async function reverseGeocode(lat, lon) {
+    if (!GEOCODING_API_KEY) {
+        return `Location (${lat.toFixed(4)}, ${lon.toFixed(4)})`;
+    }
+    
+    const url = `https://us1.locationiq.com/v1/reverse?key=${GEOCODING_API_KEY}&lat=${lat}&lon=${lon}&format=json`;
+    
+    try {
+        const response = await fetch(url);
+        if (response.ok) {
+            const data = await response.json();
+            return data.display_name || `Location (${lat.toFixed(4)}, ${lon.toFixed(4)})`;
+        }
+    } catch (error) {
+        console.error('Reverse geocoding error:', error);
+    }
+    
+    return `Location (${lat.toFixed(4)}, ${lon.toFixed(4)})`;
+}
 
+/**
+ * Handle search button click
+ */
 async function handleSearch() {
-    const input = document.getElementById('search-input');
-    const location = input.value.trim();
+    const searchInput = document.getElementById('search-input');
+    const location = searchInput.value.trim();
     
     if (!location) {
-        alert('لطفاً نام یک مکان را وارد کنید');
+        alert('Please enter a location to search');
         return;
     }
     
     try {
         const result = await geocodeLocation(location);
         
-        // حرکت نقشه به موقعیت
-        if (map && result.success) {
-            const view = map.getView();
-            view.animate({
-                center: ol.proj.fromLonLat([result.lon, result.lat]),
-                zoom: CONFIG.DEFAULT_SEARCH_ZOOM,
-                duration: 1000
-            });
-            
-            // اضافه کردن مارکر
-            markerLayer.getSource().clear();
-            const marker = new ol.Feature({
-                geometry: new ol.geom.Point(ol.proj.fromLonLat([result.lon, result.lat]))
-            });
-            markerLayer.getSource().addFeature(marker);
-        }
+        // Move map to location
+        moveMapToLocation(result.lon, result.lat, 12);
         
-        // دریافت آب‌وهوا
+        // Add marker
+        addMarker(result.lon, result.lat, result.formatted);
+        
+        // Get weather data for this location
         await getWeatherData(result.lat, result.lon, result.formatted);
         
-        input.value = '';
+        // Clear search input
+        searchInput.value = '';
         
     } catch (error) {
-        alert(`خطا: ${error.message}`);
+        alert(`Error: ${error.message}`);
+        console.error('Search error:', error);
     }
 }
 
-async function handleMapClick(event) {
-    const coords = ol.proj.toLonLat(event.coordinate);
-    const lon = coords[0];
-    const lat = coords[1];
+/**
+ * Move map to specific coordinates with animation
+ * @param {number} lon - Longitude
+ * @param {number} lat - Latitude
+ * @param {number} zoom - Zoom level
+ */
+function moveMapToLocation(lon, lat, zoom = 12) {
+    const view = map.getView();
+    const targetCenter = ol.proj.fromLonLat([lon, lat]);
     
-    // اضافه کردن مارکر کلیک
+    // Smooth animation
+    view.animate({
+        center: targetCenter,
+        zoom: zoom,
+        duration: 1000
+    });
+}
+
+/**
+ * Add marker to map
+ * @param {number} lon - Longitude
+ * @param {number} lat - Latitude
+ * @param {string} title - Marker title
+ */
+function addMarker(lon, lat, title = '') {
+    // Clear previous markers
+    markerLayer.getSource().clear();
+    
+    const marker = new ol.Feature({
+        geometry: new ol.geom.Point(ol.proj.fromLonLat([lon, lat])),
+        name: title
+    });
+    
+    markerLayer.getSource().addFeature(marker);
+}
+
+/**
+ * Add click marker to map
+ * @param {number} lon - Longitude
+ * @param {number} lat - Latitude
+ */
+function addClickMarker(lon, lat) {
+    // Clear previous click markers
     clickMarker.getSource().clear();
+    
     const marker = new ol.Feature({
         geometry: new ol.geom.Point(ol.proj.fromLonLat([lon, lat]))
     });
-    clickMarker.getSource().addFeature(marker);
     
-    // دریافت آب‌وهوا
-    await getWeatherData(lat, lon, `موقعیت انتخابی (${lat.toFixed(4)}, ${lon.toFixed(4)})`);
+    clickMarker.getSource().addFeature(marker);
 }
 
-function displayWeatherData(data, customName = null) {
-    const name = customName || data.name;
+// ============================================================================
+// WEATHER FUNCTIONS (Using OpenWeatherMap)
+// ============================================================================
+
+/**
+ * Get weather data from OpenWeatherMap API
+ * @param {number} lat - Latitude
+ * @param {number} lon - Longitude
+ * @param {string} locationName - Optional location name
+ */
+async function getWeatherData(lat, lon, locationName = null) {
+    console.log(`Getting weather data for lat: ${lat}, lon: ${lon}`);
+    
+    if (!WEATHER_API_KEY) {
+        throw new Error('OpenWeatherMap API key is not configured');
+    }
+    
+    const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${WEATHER_API_KEY}&units=metric`;
+    
+    try {
+        showLoading(true);
+        
+        const response = await fetch(url);
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(`Weather API error: ${errorData.message || response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log('Weather data received:', data);
+        
+        // If location name not provided, try to get it from reverse geocoding
+        let displayName = locationName;
+        if (!displayName) {
+            displayName = await reverseGeocode(lat, lon);
+        }
+        
+        // Display weather data
+        displayWeatherData(data, displayName);
+        
+    } catch (error) {
+        console.error('Weather API error:', error);
+        
+        // Provide user-friendly error messages
+        if (error.message.includes('401')) {
+            alert('Error: Invalid OpenWeatherMap API key. Please check your API key.');
+        } else if (error.message.includes('404')) {
+            alert('Error: Weather data not found for this location.');
+        } else if (error.message.includes('429')) {
+            alert('Error: Too many requests. Please wait a moment and try again.');
+        } else {
+            alert(`Error getting weather data: ${error.message}`);
+        }
+    } finally {
+        showLoading(false);
+    }
+}
+
+/**
+ * Display weather data in the UI
+ * @param {Object} data - Weather data from API
+ * @param {string} customLocationName - Custom location name to display
+ */
+function displayWeatherData(data, customLocationName = null) {
+    const locationName = customLocationName || data.name || 'Unknown Location';
     const temp = Math.round(data.main.temp);
-    const feels = Math.round(data.main.feels_like);
+    const feelsLike = Math.round(data.main.feels_like);
     const humidity = data.main.humidity;
     const pressure = data.main.pressure;
-    const wind = data.wind.speed;
-    const condition = data.weather[0]?.description || 'نامشخص';
-    
-    // آپدیت UI
-    document.getElementById('location-name').textContent = name;
-    document.getElementById('coordinates').textContent = 
-        `عرض: ${data.coord.lat.toFixed(4)}، طول: ${data.coord.lon.toFixed(4)}`;
-    document.getElementById('temp-value').textContent = temp;
-    document.getElementById('feels-like').textContent = `${feels}°C`;
-    document.getElementById('humidity').textContent = `${humidity}%`;
-    document.getElementById('pressure').textContent = `${pressure} hPa`;
-    document.getElementById('wind-speed').textContent = `${wind} m/s`;
-    document.getElementById('weather-condition').textContent = condition;
-    
-    // آپدیت آیکون
+    const windSpeed = data.wind.speed;
+    const visibility = data.visibility ? (data.visibility / 1000).toFixed(1) : 'N/A';
+    const cloudiness = data.clouds?.all || 0;
+    const condition = data.weather[0]?.description || 'Unknown';
     const iconCode = data.weather[0]?.icon || '01d';
-    const iconMap = {
-        '01d': 'fas fa-sun', '02d': 'fas fa-cloud-sun',
-        '03d': 'fas fa-cloud', '10d': 'fas fa-cloud-rain'
-    };
-    document.getElementById('weather-icon').innerHTML = 
-        `<i class="${iconMap[iconCode] || 'fas fa-sun'}"></i>`;
     
-    // نمایش پنل
+    // Capitalize condition
+    const capitalizedCondition = condition.charAt(0).toUpperCase() + condition.slice(1);
+    
+    // Update UI elements
+    document.getElementById('location-name').textContent = locationName;
+    document.getElementById('coordinates').textContent = `Lat: ${data.coord.lat.toFixed(4)}, Lon: ${data.coord.lon.toFixed(4)}`;
+    document.getElementById('temp-value').textContent = temp;
+    document.getElementById('feels-like').textContent = `${feelsLike} °C`;
+    document.getElementById('humidity').textContent = `${humidity} %`;
+    document.getElementById('pressure').textContent = `${pressure} hPa`;
+    document.getElementById('wind-speed').textContent = `${windSpeed.toFixed(1)} m/s`;
+    document.getElementById('visibility').textContent = `${visibility} km`;
+    document.getElementById('cloudiness').textContent = `${cloudiness} %`;
+    document.getElementById('weather-condition').textContent = capitalizedCondition;
+    
+    // Update weather icon
+    updateWeatherIcon(iconCode);
+    
+    // Update last updated time
+    const now = new Date();
+    document.getElementById('last-updated').textContent = `Last updated: ${now.toLocaleTimeString()}`;
+    
+    // Show weather data and hide placeholder
     document.getElementById('weather-placeholder').style.display = 'none';
     document.getElementById('weather-data').style.display = 'block';
 }
 
+/**
+ * Update weather icon based on OpenWeatherMap icon code
+ * @param {string} iconCode - OpenWeatherMap icon code
+ */
+function updateWeatherIcon(iconCode) {
+    const iconMap = {
+        '01d': 'fas fa-sun',           // Clear sky day
+        '01n': 'fas fa-moon',          // Clear sky night
+        '02d': 'fas fa-cloud-sun',     // Few clouds day
+        '02n': 'fas fa-cloud-moon',    // Few clouds night
+        '03d': 'fas fa-cloud',         // Scattered clouds
+        '03n': 'fas fa-cloud',
+        '04d': 'fas fa-cloud',         // Broken clouds
+        '04n': 'fas fa-cloud',
+        '09d': 'fas fa-cloud-rain',    // Shower rain
+        '09n': 'fas fa-cloud-rain',
+        '10d': 'fas fa-cloud-sun-rain',// Rain day
+        '10n': 'fas fa-cloud-moon-rain',// Rain night
+        '11d': 'fas fa-bolt',          // Thunderstorm
+        '11n': 'fas fa-bolt',
+        '13d': 'fas fa-snowflake',     // Snow
+        '13n': 'fas fa-snowflake',
+        '50d': 'fas fa-smog',          // Mist
+        '50n': 'fas fa-smog'
+    };
+    
+    const iconElement = document.getElementById('weather-icon');
+    const iconClass = iconMap[iconCode] || 'fas fa-question-circle';
+    iconElement.innerHTML = `<i class="${iconClass}"></i>`;
+}
+
+// ============================================================================
+// EVENT HANDLERS
+// ============================================================================
+
+/**
+ * Handle map click event for weather data
+ * @param {Event} event - Map click event
+ */
+async function handleMapClick(event) {
+    const coordinates = ol.proj.toLonLat(event.coordinate);
+    const lon = coordinates[0];
+    const lat = coordinates[1];
+    
+    console.log(`Map clicked at lon: ${lon}, lat: ${lat}`);
+    
+    // Add click marker
+    addClickMarker(lon, lat);
+    
+    // Get weather data
+    await getWeatherData(lat, lon);
+}
+
+/**
+ * Get current location using browser geolocation
+ */
+function getCurrentLocation() {
+    if (!navigator.geolocation) {
+        alert('Geolocation is not supported by your browser');
+        return;
+    }
+    
+    showLoading(true);
+    
+    navigator.geolocation.getCurrentPosition(
+        async (position) => {
+            const lat = position.coords.latitude;
+            const lon = position.coords.longitude;
+            
+            // Move map to location
+            moveMapToLocation(lon, lat, 14);
+            
+            // Add marker
+            addMarker(lon, lat, 'Your Location');
+            
+            // Get weather data
+            await getWeatherData(lat, lon, 'Your Location');
+            
+            showLoading(false);
+        },
+        (error) => {
+            console.error('Geolocation error:', error);
+            
+            // User-friendly error messages
+            switch(error.code) {
+                case error.PERMISSION_DENIED:
+                    alert("Location permission denied. Please enable location services in your browser settings.");
+                    break;
+                case error.POSITION_UNAVAILABLE:
+                    alert("Location information is unavailable. Please check your device's location settings.");
+                    break;
+                case error.TIMEOUT:
+                    alert("Location request timed out. Please try again.");
+                    break;
+                default:
+                    alert(`Error getting location: ${error.message}`);
+            }
+            
+            showLoading(false);
+        },
+        {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 0
+        }
+    );
+}
+
+/**
+ * Update coordinates display in weather panel
+ */
+function updateCoordinatesDisplay() {
+    const view = map.getView();
+    const center = ol.proj.toLonLat(view.getCenter());
+    
+    if (document.getElementById('weather-data').style.display === 'block') {
+        document.getElementById('coordinates').textContent = 
+            `Lat: ${center[1].toFixed(4)}, Lon: ${center[0].toFixed(4)}`;
+    }
+}
+
+/**
+ * Show/hide loading overlay
+ * @param {boolean} show - Whether to show loading
+ */
 function showLoading(show) {
-    document.getElementById('loading-overlay').style.display = show ? 'flex' : 'none';
+    const overlay = document.getElementById('loading-overlay');
+    overlay.style.display = show ? 'flex' : 'none';
+}
+
+// ============================================================================
+// API COMPARISON TAB FUNCTIONALITY
+// ============================================================================
+
+/**
+ * Initialize API comparison tabs
+ */
+function initializeTabs() {
+    const tabButtons = document.querySelectorAll('.tab-btn');
+    const tabContents = document.querySelectorAll('.tab-content');
+    
+    tabButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            const tabId = button.getAttribute('data-tab');
+            
+            // Remove active class from all buttons and contents
+            tabButtons.forEach(btn => btn.classList.remove('active'));
+            tabContents.forEach(content => content.classList.remove('active'));
+            
+            // Add active class to clicked button and corresponding content
+            button.classList.add('active');
+            document.getElementById(`${tabId}-tab`).classList.add('active');
+        });
+    });
 }
 
 // ============================================================================
 // INITIALIZATION
 // ============================================================================
 
+/**
+ * Initialize the application
+ */
 function initializeApp() {
-    console.log('Starting WebGIS App...');
+    console.log('Initializing WebGIS Application...');
     
-    initializeMap();
-    
-    // Event Listeners
-    document.getElementById('search-btn').addEventListener('click', handleSearch);
-    document.getElementById('current-location-btn').addEventListener('click', function() {
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(async (pos) => {
-                const lat = pos.coords.latitude;
-                const lon = pos.coords.longitude;
-                
-                if (map) {
-                    map.getView().animate({
-                        center: ol.proj.fromLonLat([lon, lat]),
-                        zoom: 14,
-                        duration: 1000
-                    });
-                    
-                    await getWeatherData(lat, lon, 'موقعیت شما');
-                }
-            });
-        } else {
-            alert('مرورگر شما از موقعیت‌یابی پشتیبانی نمی‌کند');
-        }
-    });
-    
-    document.getElementById('search-input').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') handleSearch();
-    });
+    try {
+        // Initialize map
+        initializeMap();
+        
+        // Initialize tabs
+        initializeTabs();
+        
+        // Setup event listeners
+        document.getElementById('search-btn').addEventListener('click', handleSearch);
+        document.getElementById('current-location-btn').addEventListener('click', getCurrentLocation);
+        
+        // Allow pressing Enter in search input
+        document.getElementById('search-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                handleSearch();
+            }
+        });
+        
+        console.log('Application initialized successfully');
+        console.log('Using LocationIQ API key:', GEOCODING_API_KEY ? 'Configured' : 'Not configured');
+        console.log('Using OpenWeatherMap API key:', WEATHER_API_KEY ? 'Configured' : 'Not configured');
+        
+    } catch (error) {
+        console.error('Failed to initialize application:', error);
+        alert('Failed to initialize the map. Please check your browser console for details.');
+    }
 }
 
-// Start app
+// ============================================================================
+// START APPLICATION
+// ============================================================================
+
+// Start the application when DOM is loaded
 document.addEventListener('DOMContentLoaded', initializeApp);
+
+// Global error handler
+window.addEventListener('error', function(event) {
+    console.error('Global error:', event.error);
+    showLoading(false);
+    alert('An unexpected error occurred. Please check the console for details.');
+});
+
+// Display API key status on page load
+window.addEventListener('load', function() {
+    const apiStatus = document.createElement('div');
+    apiStatus.style.cssText = `
+        position: fixed;
+        bottom: 10px;
+        right: 10px;
+        background: rgba(0,0,0,0.7);
+        color: white;
+        padding: 5px 10px;
+        border-radius: 5px;
+        font-size: 12px;
+        z-index: 1000;
+    `;
+    
+    const geocodingStatus = GEOCODING_API_KEY ? '✅' : '❌';
+    const weatherStatus = WEATHER_API_KEY ? '✅' : '❌';
+    
+    apiStatus.innerHTML = `API Status: Geocoding ${geocodingStatus} | Weather ${weatherStatus}`;
+    document.body.appendChild(apiStatus);
+});
