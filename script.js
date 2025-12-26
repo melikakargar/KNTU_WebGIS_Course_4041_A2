@@ -9,8 +9,8 @@
 // Note: In production, these should be stored in environment variables
 // For this assignment, replace these placeholders with your actual API keys
 
-const GEOCODING_API_KEY = 'YOUR_OPENCAGE_API_KEY_HERE'; // Get from https://opencagedata.com/api
-const WEATHER_API_KEY = 'YOUR_OPENWEATHERMAP_API_KEY_HERE'; // Get from https://openweathermap.org/api
+const GEOCODING_API_KEY = CONFIG.GEOCODING_API_KEY; // Get from https://opencagedata.com/api
+const WEATHER_API_KEY = CONFIG.WEATHER_API_KEY; // Get from https://openweathermap.org/api
 
 // ============================================================================
 // MAP INITIALIZATION
