@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebGIS Assignment - Interactive Map with Weather</title>
+    <!-- OpenLayers CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v7.3.0/ol.css" type="text/css">
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="style.css">
+    <!-- OpenLayers JS -->
+    <script src="https://cdn.jsdelivr.net/npm/ol@v7.3.0/dist/ol.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1><i class="fas fa-map-marked-alt"></i> WebGIS Interactive Map</h1>
+            <p class="subtitle">Search locations and get real-time weather information</p>
+        </header>
+
+        <!-- Search Section -->
+        <div class="search-container">
+            <div class="search-box">
+                <i class="fas fa-search"></i>
+                <input type="text" id="search-input" placeholder="Enter a location (e.g., New York, London, Tokyo)">
+                <button id="search-btn" class="btn">
+                    <i class="fas fa-search-location"></i> Search
+                </button>
+                <button id="current-location-btn" class="btn secondary">
+                    <i class="fas fa-location-crosshairs"></i> My Location
+                </button>
+            </div>
+            <div class="search-info">
+                <p><i class="fas fa-info-circle"></i> Search for any location or click on the map to get weather data</p>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Map Container -->
+            <div class="map-container">
+                <div id="map" class="map"></div>
+                <!-- Loading Overlay -->
+                <div id="loading-overlay" class="loading-overlay">
+                    <div class="spinner"></div>
+                    <p>Loading...</p>
+                </div>
+            </div>
+
+            <!-- Weather Panel -->
+            <div class="weather-panel">
+                <div class="panel-header">
+                    <h2><i class="fas fa-cloud-sun"></i> Weather Information</h2>
+                    <div class="last-updated" id="last-updated">-</div>
+                </div>
+                
+                <div class="weather-content">
+                    <div class="weather-placeholder" id="weather-placeholder">
+                        <i class="fas fa-map-marker-alt"></i>
+                        <p>Click on the map or search for a location to see weather data</p>
+                    </div>
+                    
+                    <div class="weather-data" id="weather-data" style="display: none;">
+                        <div class="location-info">
+                            <h3 id="location-name">-</h3>
+                            <p id="coordinates">-</p>
+                        </div>
+                        
+                        <div class="current-weather">
+                            <div class="weather-icon" id="weather-icon">
+                                <i class="fas fa-sun"></i>
+                            </div>
+                            <div class="temperature">
+                                <span id="temp-value">-</span>
+                                <span class="unit">°C</span>
+                            </div>
+                            <div class="condition" id="weather-condition">-</div>
+                        </div>
+                        
+                        <div class="weather-details">
+                            <div class="detail-item">
+                                <i class="fas fa-temperature-high"></i>
+                                <div>
+                                    <span class="label">Feels Like</span>
+                                    <span class="value" id="feels-like">- °C</span>
+                                </div>
+                            </div>
+                            <div class="detail-item">
+                                <i class="fas fa-tint"></i>
+                                <div>
+                                    <span class="label">Humidity</span>
+                                    <span class="value" id="humidity">- %</span>
+                                </div>
+                            </div>
+                            <div class="detail-item">
+                                <i class="fas fa-wind"></i>
+                                <div>
+                                    <span class="label">Wind Speed</span>
+                                    <span class="value" id="wind-speed">- m/s</span>
+                                </div>
+                            </div>
+                            <div class="detail-item">
+                                <i class="fas fa-compress-alt"></i>
+                                <div>
+                                    <span class="label">Pressure</span>
+                                    <span class="value" id="pressure">- hPa</span>
+                                </div>
+                            </div>
+                            <div class="detail-item">
+                                <i class="fas fa-eye"></i>
+                                <div>
+                                    <span class="label">Visibility</span>
+                                    <span class="value" id="visibility">- km</span>
+                                </div>
+                            </div>
+                            <div class="detail-item">
+                                <i class="fas fa-cloud"></i>
+                                <div>
+                                    <span class="label">Cloudiness</span>
+                                    <span class="value" id="cloudiness">- %</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="api-info">
+                    <p><i class="fas fa-key"></i> Using OpenWeatherMap API</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- API Comparison Info -->
+        <div class="api-comparison">
+            <h3><i class="fas fa-chart-line"></i> API Information</h3>
+            <div class="comparison-tabs">
+                <button class="tab-btn active" data-tab="geocoding">Geocoding APIs</button>
+                <button class="tab-btn" data-tab="weather">Weather APIs</button>
+            </div>
+            
+            <div class="tab-content active" id="geocoding-tab">
+                <div class="api-card">
+                    <h4><i class="fas fa-map-pin"></i> OpenCage Geocoding API</h4>
+                    <p><strong>Free Tier:</strong> 2,500 requests/day</p>
+                    <p><strong>Pricing:</strong> $0.0015/request after free tier</p>
+                    <p><strong>Used in this project:</strong> Yes</p>
+                </div>
+            </div>
+            
+            <div class="tab-content" id="weather-tab">
+                <div class="api-card">
+                    <h4><i class="fas fa-cloud-sun-rain"></i> OpenWeatherMap API</h4>
+                    <p><strong>Free Tier:</strong> 1,000 calls/day</p>
+                    <p><strong>Pricing:</strong> Free for current weather data</p>
+                    <p><strong>Used in this project:</strong> Yes</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Instructions -->
+        <div class="instructions">
+            <h3><i class="fas fa-graduation-cap"></i> How to Use</h3>
+            <ol>
+                <li><strong>Search:</strong> Enter a location in the search bar and click "Search"</li>
+                <li><strong>Get Weather:</strong> Click anywhere on the map to get weather data</li>
+                <li><strong>Current Location:</strong> Click "My Location" to center the map on your position</li>
+                <li><strong>Navigation:</strong> Use mouse scroll to zoom, drag to pan</li>
+            </ol>
+        </div>
+
+        <footer>
+            <p>WebGIS Course Assignment 2 | OpenLayers & API Integration</p>
+            <p class="note"><i class="fas fa-exclamation-triangle"></i> Note: API keys are not included. Please add your own keys in script.js</p>
+        </footer>
+    </div>
+
+    <!-- JavaScript -->
+    <script src="script.js"></script>
+</body>
+</html>
