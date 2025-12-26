@@ -2,15 +2,30 @@
 // Main application script
 
 // ============================================================================
-// CONFIGURATION - API KEYS (Replace with your own keys)
+// CONFIGURATION - API KEYS AND SETTINGS
 // ============================================================================
 
-
-// Note: In production, these should be stored in environment variables
-// For this assignment, replace these placeholders with your actual API keys
-
-const GEOCODING_API_KEY = CONFIG.GEOCODING_API_KEY; // Get from https://opencagedata.com/api
-const WEATHER_API_KEY = CONFIG.WEATHER_API_KEY; // Get from https://openweathermap.org/api
+// Configuration object for API keys and settings
+const CONFIG = {
+    // API Keys (Replace with your own keys)
+    GEOCODING_API_KEY: 'YOUR_OPENCAGE_API_KEY_HERE', // Get from https://opencagedata.com/api
+    WEATHER_API_KEY: 'YOUR_OPENWEATHERMAP_API_KEY_HERE', // Get from https://openweathermap.org/api
+    
+    // Map Settings
+    INITIAL_CENTER: [0, 0], // [longitude, latitude]
+    INITIAL_ZOOM: 2,
+    MIN_ZOOM: 2,
+    MAX_ZOOM: 18,
+    
+    // API Endpoints
+    GEOCODING_API_URL: 'https://api.opencagedata.com/geocode/v1/json',
+    WEATHER_API_URL: 'https://api.openweathermap.org/data/2.5/weather',
+    
+    // Default Settings
+    DEFAULT_SEARCH_ZOOM: 12,
+    DEFAULT_CLICK_ZOOM: 14,
+    ANIMATION_DURATION: 1000
+};
 
 // ============================================================================
 // MAP INITIALIZATION
@@ -84,10 +99,10 @@ function initializeMap() {
         target: 'map',
         layers: [osmLayer, stamenLayer, markerLayer, clickMarker],
         view: new ol.View({
-            center: ol.proj.fromLonLat([0, 0]), // Center on [0, 0]
-            zoom: 2,
-            minZoom: 2,
-            maxZoom: 18
+            center: ol.proj.fromLonLat(CONFIG.INITIAL_CENTER),
+            zoom: CONFIG.INITIAL_ZOOM,
+            minZoom: CONFIG.MIN_ZOOM,
+            maxZoom: CONFIG.MAX_ZOOM
         }),
         controls: ol.control.defaults().extend([
             new ol.control.ScaleLine(),
@@ -120,11 +135,11 @@ function initializeMap() {
 async function geocodeLocation(location) {
     console.log(`Geocoding location: ${location}`);
     
-    if (!GEOCODING_API_KEY || GEOCODING_API_KEY === 'YOUR_OPENCAGE_API_KEY_HERE') {
+    if (!CONFIG.GEOCODING_API_KEY || CONFIG.GEOCODING_API_KEY === 'YOUR_OPENCAGE_API_KEY_HERE') {
         throw new Error('Please configure your OpenCage API key in script.js');
     }
     
-    const url = `https://api.opencagedata.com/geocode/v1/json?q=${encodeURIComponent(location)}&key=${GEOCODING_API_KEY}&limit=1&no_annotations=1`;
+    const url = `${CONFIG.GEOCODING_API_URL}?q=${encodeURIComponent(location)}&key=${CONFIG.GEOCODING_API_KEY}&limit=1&no_annotations=1`;
     
     try {
         showLoading(true);
@@ -174,7 +189,7 @@ async function handleSearch() {
         const result = await geocodeLocation(location);
         
         // Move map to location
-        moveMapToLocation(result.lon, result.lat, 12);
+        moveMapToLocation(result.lon, result.lat, CONFIG.DEFAULT_SEARCH_ZOOM);
         
         // Add marker
         addMarker(result.lon, result.lat, result.formatted);
@@ -196,7 +211,7 @@ async function handleSearch() {
  * @param {number} lat - Latitude
  * @param {number} zoom - Zoom level
  */
-function moveMapToLocation(lon, lat, zoom = 12) {
+function moveMapToLocation(lon, lat, zoom = CONFIG.DEFAULT_SEARCH_ZOOM) {
     const view = map.getView();
     const targetCenter = ol.proj.fromLonLat([lon, lat]);
     
@@ -204,7 +219,7 @@ function moveMapToLocation(lon, lat, zoom = 12) {
     view.animate({
         center: targetCenter,
         zoom: zoom,
-        duration: 1000
+        duration: CONFIG.ANIMATION_DURATION
     });
 }
 
@@ -255,11 +270,11 @@ function addClickMarker(lon, lat) {
 async function getWeatherData(lat, lon, locationName = null) {
     console.log(`Getting weather data for lat: ${lat}, lon: ${lon}`);
     
-    if (!WEATHER_API_KEY || WEATHER_API_KEY === 'YOUR_OPENWEATHERMAP_API_KEY_HERE') {
+    if (!CONFIG.WEATHER_API_KEY || CONFIG.WEATHER_API_KEY === 'YOUR_OPENWEATHERMAP_API_KEY_HERE') {
         throw new Error('Please configure your OpenWeatherMap API key in script.js');
     }
     
-    const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${WEATHER_API_KEY}&units=metric`;
+    const url = `${CONFIG.WEATHER_API_URL}?lat=${lat}&lon=${lon}&appid=${CONFIG.WEATHER_API_KEY}&units=metric`;
     
     try {
         showLoading(true);
@@ -395,7 +410,7 @@ function getCurrentLocation() {
             const lon = position.coords.longitude;
             
             // Move map to location
-            moveMapToLocation(lon, lat, 14);
+            moveMapToLocation(lon, lat, CONFIG.DEFAULT_CLICK_ZOOM);
             
             // Add marker
             addMarker(lon, lat, 'Your Location');
